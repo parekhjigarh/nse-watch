@@ -54,6 +54,13 @@
   .sub.hot { border-left-color:var(--hot); }
   .more { display:block; margin:8px 12px; }
   .dh2 { padding:4px 12px; font-size:12px; color:var(--mut); background:var(--chip); }
+  .mine { background:rgba(234,179,8,.10); }
+  .mystar { color:#eab308; font-weight:700; font-size:12px; margin-left:6px; white-space:nowrap; }
+  .tog { cursor:pointer; user-select:none; display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .tog > span:last-child { white-space:nowrap; }
+  .sumline { padding:0 12px 8px; color:var(--mut); font-size:12px; }
+  .sec { padding:6px 12px; font-size:12px; font-weight:700; color:var(--acc); text-transform:uppercase; letter-spacing:.03em; }
+  .indent { padding:0 12px; }
   section { display:none; } section.on { display:block; }
 </style>
 </head>
@@ -102,7 +109,6 @@
   <div class="bar">
     <input type="text" id="addsym" placeholder="Add symbol, e.g. LT or JWL" style="text-transform:uppercase">
     <button id="addbtn">Add</button>
-    <label class="ck"><input type="checkbox" id="myhl"> Highlights only</label>
     <button id="bk" title="Copy your list or restore it on another device">Backup / Restore</button>
   </div>
   <div class="chips" id="chips"></div>
@@ -121,7 +127,7 @@ const prevSeen = store.get('lastSeen', 0);
 store.set('lastSeen', Date.now());
 
 let ann = [], evs = [], allItems = [], upd = '', archive = null, archLoading = false;
-const myExpanded = new Set();
+const myExpanded = new Set(), myOpen = new Set();
 let ignore = store.get('ignore', []);
 let tab = (location.hash || '#ann').slice(1);
 let watch = store.get('watch', []);
@@ -150,12 +156,12 @@ function annRow(i, showNew = true) {
   const subj = i.pdf ? `<a href="${esc(i.pdf)}" target="_blank" rel="noopener">${esc(i.subject)}</a>` : esc(i.subject);
   const hl = (i.hl || []).map(h => `<div class="hl">${boldAmt(h)}</div>`).join('');
   const det = !hl && i.details ? `<div class="det">${esc(i.details.slice(0, 220))}</div>` : '';
-  return `<div class="item ${i.hot ? 'hot' : ''}">
+  return `<div class="item ${i.hot ? 'hot' : ''} ${watch.includes(i.symbol) ? 'mine' : ''}">
     <div class="top">
-      <span class="sym">${watch.includes(i.symbol) ? '★ ' : ''}${esc(i.symbol)}</span><span class="chip ${(i.cap || '').split(' ')[0]}">${esc(i.cap)}</span>
+      <span class="sym">${esc(i.symbol)}</span><span class="chip ${(i.cap || '').split(' ')[0]}">${esc(i.cap)}</span>
       ${i.hot ? '<span class="hotb">HOT</span>' : ''}${isNew ? '<span class="newb">NEW</span>' : ''}
       ${i.amt ? `<span class="amt">${esc(i.amt)}</span>` : ''}
-      <span class="time">${fmtTs(i.ts)}</span>
+      <span class="time">${fmtTs(i.ts)}</span>${watch.includes(i.symbol) ? '<span class="mystar">★ My stock</span>' : ''}
     </div>
     <div class="co">${esc(i.company)}</div>
     <div class="top" style="margin-top:3px">${tags}</div>
@@ -182,12 +188,12 @@ function groupCard(sym, items, hidden) {
   const hl = (best.hl || []).map(h => `<div class="hl">${boldAmt(h)}</div>`).join('');
   const det = !hl && best.details ? `<div class="det">${esc(best.details.slice(0, 220))}</div>` : '';
   const more = items.length > 1 ? `<details><summary>Show all ${items.length} announcements</summary>${items.map(subRow).join('')}</details>` : '';
-  return `<div class="item ${hot ? 'hot' : ''}">
+  return `<div class="item ${hot ? 'hot' : ''} ${watch.includes(sym) ? 'mine' : ''}">
     <div class="top">
-      <span class="sym">${watch.includes(sym) ? '★ ' : ''}${esc(sym)}</span><span class="chip ${(best.cap || '').split(' ')[0]}">${esc(best.cap)}</span>
+      <span class="sym">${esc(sym)}</span><span class="chip ${(best.cap || '').split(' ')[0]}">${esc(best.cap)}</span>
       ${items.length > 1 ? `<span class="cnt">${items.length}</span>` : ''}${hot ? '<span class="hotb">HOT</span>' : ''}${isNew ? '<span class="newb">NEW</span>' : ''}
       ${amt ? `<span class="amt">${esc(amt)}</span>` : ''}
-      <span class="time">${fmtTs(items[0].ts)}</span>
+      <span class="time">${fmtTs(items[0].ts)}</span>${watch.includes(sym) ? '<span class="mystar">★ My stock</span>' : ''}
     </div>
     <div class="co">${esc(best.company)}<a class="hidebtn" data-hide="${esc(sym)}">${hidden ? 'Unhide' : 'Hide'}</a></div>
     <div class="top" style="margin-top:3px">${tags}</div>
@@ -202,22 +208,63 @@ function related(sym, n = 2) {
 
 function evRow(e, withRel = true) {
   const r = withRel ? related(e.symbol) : { n: 0, top: [] };
+  const mine = watch.includes(e.symbol);
   const rel = r.n ? `<div class="rel"><div>${r.n} announcement(s) stored for ${esc(e.symbol)}:</div>` +
     r.top.map(i => `<div>• ${esc(i.subject)}${i.hl && i.hl[0] ? ' — ' + boldAmt(i.hl[0].slice(0, 140)) : ''}</div>`).join('') + '</div>' : '';
-  return `<div class="item">
-    <div class="top"><span class="sym">${watch.includes(e.symbol) ? '★ ' : ''}${esc(e.symbol)}</span><span class="chip ${(e.cap || '').split(' ')[0]}">${esc(e.cap)}</span>
-      <span class="tag RESULTS" style="background:#64748b">${esc(e.purpose)}</span></div>
+  return `<div class="item ${mine ? 'mine' : ''}">
+    <div class="top"><span class="sym">${esc(e.symbol)}</span><span class="chip ${(e.cap || '').split(' ')[0]}">${esc(e.cap)}</span>
+      <span class="tag RESULTS" style="background:#64748b">${esc(e.purpose)}</span>${mine ? '<span class="mystar" style="margin-left:auto">★ My stock</span>' : ''}</div>
     <div class="co">${esc(e.company)}</div>
     <div class="det">${esc(e.desc.slice(0, 180))}</div>${rel}</div>`;
 }
 
-function groupByDate(list, fn) {
-  let out = '', cur = '';
-  for (const e of list) {
-    if (e.date !== cur) { cur = e.date; out += `<div class="dh">${fmtDay(cur)}${cur === istDate(Date.now()) ? ' · Today' : ''}</div>`; }
-    out += fn(e);
+const openDays = new Set(), initDays = {};
+function groupByDate(list, fn, key, forceOpen) {
+  const groups = new Map();
+  for (const e of list) { if (!groups.has(e.date)) groups.set(e.date, []); groups.get(e.date).push(e); }
+  if (!initDays[key] && groups.size) { openDays.add(key + '|' + groups.keys().next().value); initDays[key] = true; }
+  let out = '';
+  for (const [d, arr] of groups) {
+    const id = key + '|' + d, open = forceOpen || openDays.has(id);
+    const stars = arr.filter(e => watch.includes(e.symbol)).length;
+    out += `<div class="dh tog" data-day="${id}"><span>${open ? '▼' : '▶'} ${fmtDay(d)}${d === istDate(Date.now()) ? ' · Today' : ''}</span>` +
+      `<span class="co">${arr.length} events${stars ? ` <span class="mystar">★ ${stars}</span>` : ''}</span></div>`;
+    if (open) out += arr.map(fn).join('');
   }
   return out;
+}
+
+function myCard(s) {
+  const t0 = istDate(Date.now());
+  const e = evs.filter(x => x.symbol === s && x.date >= t0).sort((x, y) => x.date.localeCompare(y.date));
+  const a = allItems.filter(x => x.symbol === s).sort((x, y) => (y.ts || '').localeCompare(x.ts || ''));
+  const hi = a.filter(x => (x.tags || []).length);
+  const open = myOpen.has(s);
+  const hot = a.some(x => x.hot);
+  const top = hi.slice().sort((x, y) => (y.amt_cr || 0) - (x.amt_cr || 0))[0];
+  const company = (a[0] || e[0] || {}).company || '';
+  const next = e[0] ? `Next: ${esc(e[0].purpose)} · ${fmtDay(e[0].date)}` : '';
+  const latest = hi[0] ? `Latest: ${esc(hi[0].subject)} (${fmtDay(hi[0].ts.slice(0, 10))})` : '';
+  const head = `<div class="dh tog" data-stock="${esc(s)}"><span>${open ? '▼' : '▶'} ${esc(s)} <span class="co">${esc(company)}</span></span>` +
+    `<span>${hot ? '<span class="hotb">HOT</span> ' : ''}${top && top.amt_cr ? `<span class="amt">${esc(top.amt)}</span> ` : ''}<span class="co">${a.length}</span></span></div>`;
+  const line = `<div class="sumline">${archLoading && !a.length ? 'Loading…' : [next, latest].filter(Boolean).join(' · ') || (a.length ? '' : 'No announcements in the last 30 days')}</div>`;
+  if (!open) return head + line;
+
+  let html = head + line + '<div class="sec">Quick highlights · last 30 days</div>';
+  html += hi.length ? hi.map(i => `<div class="indent">${subRow(i)}</div>`).join('') : '<div class="sumline">No tagged news in the last 30 days.</div>';
+  html += '<div class="sec">Upcoming meetings</div>';
+  html += e.length ? e.map(x => `<div class="item"><div class="top"><span class="tag RESULTS" style="background:#64748b">${fmtDay(x.date)}</span> <span>${esc(x.purpose)}</span></div><div class="det">${esc(x.desc.slice(0, 220))}</div></div>`).join('') :
+    '<div class="sumline">None announced yet.</div>';
+  html += `<div class="sec">All announcements by date (${a.length})</div>`;
+  const lim = myExpanded.has(s) ? a.length : 15;
+  let day = '';
+  for (const i of a.slice(0, lim)) {
+    const d = (i.ts || '').slice(0, 10);
+    if (d !== day) { day = d; html += `<div class="dh2">${d ? fmtDay(d) : ''}</div>`; }
+    html += `<div class="indent">${subRow(i)}</div>`;
+  }
+  if (a.length > lim) html += `<button class="more" data-more="${esc(s)}">Show all ${a.length}</button>`;
+  return html;
 }
 
 function textOf(...a) { return a.join(' ').toLowerCase(); }
@@ -253,7 +300,7 @@ function render() {
     const rows = evs.filter(e => e.date >= t0 && e.date <= t7 && (mineOnly ? myset.has(e.symbol) : (capOk(e.cap, capSel) || myset.has(e.symbol))) &&
       (!q || textOf(e.symbol, e.company, e.purpose, e.desc).includes(q)));
     n = rows.length; total = evs.length; extra = ' · next 7 days';
-    $('l-week').innerHTML = groupByDate(rows, e => evRow(e)) || `<div class="empty">No events in the next 7 days for this filter.${mineOnly ? ' None of your stocks has a meeting/result date announced yet.' : ''}</div>`;
+    $('l-week').innerHTML = groupByDate(rows, e => evRow(e), 'week', !!q) || `<div class="empty">No events in the next 7 days for this filter.${mineOnly ? ' None of your stocks has a meeting/result date announced yet.' : ''}</div>`;
   }
 
   if (tab === 'cal') {
@@ -262,34 +309,16 @@ function render() {
       (!p || textOf(e.purpose, e.desc).includes(p)) &&
       (!q || textOf(e.symbol, e.company, e.purpose, e.desc).includes(q)));
     n = rows.length; total = evs.length;
-    $('l-cal').innerHTML = groupByDate(rows.slice(0, 600), e => evRow(e, false)) || '<div class="empty">No events.</div>';
+    $('l-cal').innerHTML = groupByDate(rows.slice(0, 600), e => evRow(e, false), 'cal', !!q) || '<div class="empty">No events.</div>';
   }
 
   if (tab === 'my') {
     $('chips').innerHTML = watch.map(s => `<span class="chip">${esc(s)}<span data-rm="${esc(s)}">✕</span></span>`).join('') ||
       '<span class="note">No stocks yet. Add a symbol above.</span>';
     if (watch.length) loadArchive();
-    const t0 = istDate(Date.now()), onlyhl = $('myhl').checked;
-    let html = '';
-    for (const s of watch) {
-      const e = evs.filter(x => x.symbol === s && x.date >= t0);
-      let a = allItems.filter(x => x.symbol === s).sort((x, y) => (y.ts || '').localeCompare(x.ts || ''));
-      if (onlyhl) a = a.filter(x => (x.tags || []).length);
-      html += `<div class="dh">${esc(s)} <span class="co">${esc((a[0] || e[0] || {}).company || '')}</span></div>`;
-      html += e.map(x => `<div class="item"><div class="top"><span class="tag RESULTS" style="background:#64748b">UPCOMING ${fmtDay(x.date)}</span> <span>${esc(x.purpose)}</span></div><div class="det">${esc(x.desc.slice(0, 200))}</div></div>`).join('');
-      const lim = myExpanded.has(s) ? a.length : 12;
-      let day = '';
-      for (const i of a.slice(0, lim)) {
-        const d = (i.ts || '').slice(0, 10);
-        if (d !== day) { day = d; html += `<div class="dh2">${d ? fmtDay(d) : ''}</div>`; }
-        html += annRow(i);
-      }
-      if (!a.length) html += `<div class="empty">${archLoading ? 'Loading history…' : 'No announcements in the stored 30 days.'}</div>`;
-      if (a.length > lim) html += `<button class="more" data-more="${esc(s)}">Show all ${a.length} (last 30 days)</button>`;
-    }
-    $('l-my').innerHTML = html;
+    $('l-my').innerHTML = watch.map(myCard).join('');
     n = watch.length; total = watch.length;
-    $('mynote').textContent = archLoading ? 'Loading 30-day history…' : (archive ? 'Showing up to 30 days of stored announcements.' : '');
+    $('mynote').textContent = archLoading ? 'Loading 30-day history…' : (archive ? 'Showing the last 30 days of stored announcements.' : '');
   }
   $('meta').textContent = `${n} shown${extra} · updated ${upd}`;
   document.documentElement.style.setProperty('--hh', $('hdr').offsetHeight + 'px');
@@ -369,15 +398,23 @@ $('l-ann').onclick = e => {
   store.set('ignore', ignore); render();
 };
 $('l-my').onclick = e => {
-  const s = e.target.dataset && e.target.dataset.more;
-  if (s) { myExpanded.add(s); render(); }
+  const m = e.target.dataset && e.target.dataset.more;
+  if (m) { myExpanded.add(m); render(); return; }
+  const t = e.target.closest('[data-stock]');
+  if (t) { const k = t.dataset.stock; myOpen.has(k) ? myOpen.delete(k) : myOpen.add(k); render(); }
 };
+const toggleDay = e => {
+  const t = e.target.closest('[data-day]');
+  if (t) { const k = t.dataset.day; openDays.has(k) ? openDays.delete(k) : openDays.add(k); render(); }
+};
+$('l-week').onclick = toggleDay;
+$('l-cal').onclick = toggleDay;
 $('chips').onclick = e => {
   const s = e.target.dataset && e.target.dataset.rm;
   if (s) { watch = watch.filter(x => x !== s); store.set('watch', watch); render(); }
 };
 $('tabs').onclick = e => { if (e.target.dataset.t) setTab(e.target.dataset.t); };
-['cap', 'win', 'purp', 'onlyhl', 'mine', 'showhid', 'myhl'].forEach(id => $(id).onchange = render);
+['cap', 'win', 'purp', 'onlyhl', 'mine', 'showhid'].forEach(id => $(id).onchange = render);
 $('q').oninput = render;
 $('reload').onclick = load;
 if (!['ann', 'week', 'cal', 'my'].includes(tab)) tab = 'ann';
