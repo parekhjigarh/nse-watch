@@ -5,34 +5,67 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>NSE Watch</title>
 <style>
-  :root { --bg:#fff; --fg:#1a1a1a; --mut:#6b7280; --line:#e5e7eb; --chip:#f3f4f6; --acc:#1d4ed8; }
-  @media (prefers-color-scheme: dark) { :root { --bg:#111418; --fg:#e8eaed; --mut:#9aa0a6; --line:#2a2f36; --chip:#1c2128; --acc:#6ea8fe; } }
-  * { box-sizing: border-box; }
+  :root { --bg:#fff; --fg:#1a1a1a; --mut:#6b7280; --line:#e5e7eb; --chip:#f3f4f6; --acc:#1d4ed8; --hot:#dc2626; --new:#16a34a; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#111418; --fg:#e8eaed; --mut:#9aa0a6; --line:#2a2f36; --chip:#1c2128; --acc:#6ea8fe; --hot:#f87171; --new:#4ade80; } }
+  * { box-sizing:border-box; }
   body { margin:0; font:14px/1.4 system-ui,sans-serif; background:var(--bg); color:var(--fg); }
-  header { position:sticky; top:0; background:var(--bg); border-bottom:1px solid var(--line); padding:10px 12px; z-index:2; }
-  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-  h1 { font-size:16px; margin:0; flex:1; }
+  header { position:sticky; top:0; background:var(--bg); border-bottom:1px solid var(--line); z-index:5; }
+  .tabs { display:flex; overflow-x:auto; }
+  .tabs button { flex:1; border:0; border-bottom:2px solid transparent; border-radius:0; background:none; padding:10px 8px; white-space:nowrap; font-weight:600; color:var(--mut); }
+  .tabs button.on { color:var(--acc); border-bottom-color:var(--acc); }
+  .bar { padding:8px 12px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
   button, select, input { font:inherit; padding:6px 10px; border:1px solid var(--line); border-radius:6px; background:var(--chip); color:var(--fg); }
-  input { flex:1; min-width:120px; }
-  #meta { color:var(--mut); font-size:12px; margin-top:6px; }
-  .wrap { overflow-x:auto; }
-  table { border-collapse:collapse; width:100%; }
-  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
-  th { color:var(--mut); font-weight:600; font-size:12px; position:sticky; top:0; background:var(--bg); }
-  .cap { font-size:11px; padding:2px 6px; border-radius:4px; background:var(--chip); white-space:nowrap; }
-  .Large { color:#15803d; } .Mid { color:#b45309; } .Small { color:#6b7280; }
-  .sym { font-weight:600; white-space:nowrap; }
+  input[type=text] { flex:1; min-width:120px; }
+  label.ck { display:flex; gap:4px; align-items:center; color:var(--mut); font-size:13px; }
+  #meta { color:var(--mut); font-size:12px; padding:0 12px 8px; }
+  #err { color:var(--hot); padding:12px; display:none; }
+  .item { padding:10px 12px; border-bottom:1px solid var(--line); }
+  .item.hot { border-left:3px solid var(--hot); }
+  .top { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+  .sym { font-weight:700; }
   .co { color:var(--mut); font-size:12px; }
-  .time { white-space:nowrap; color:var(--mut); font-size:12px; }
-  a { color:var(--acc); text-decoration:none; }
+  .time { color:var(--mut); font-size:12px; margin-left:auto; white-space:nowrap; }
+  .chip { font-size:11px; padding:1px 6px; border-radius:4px; background:var(--chip); white-space:nowrap; }
+  .Large { color:#15803d; } .Mid { color:#b45309; } .Small { color:#6b7280; }
+  .tag { font-size:11px; padding:1px 6px; border-radius:4px; background:var(--acc); color:#fff; }
+  .tag.ORDER { background:#0d9488; } .tag.RESULTS { background:#6366f1; } .tag.DIVIDEND { background:#ca8a04; }
+  .tag.M\&A { background:#9333ea; } .tag.RATING { background:#0284c7; } .tag.MGMT { background:#64748b; }
+  .tag.FUNDS { background:#ea580c; } .tag.LEGAL { background:#b91c1c; }
+  .hotb { font-size:11px; padding:1px 6px; border-radius:4px; background:var(--hot); color:#fff; font-weight:700; }
+  .newb { font-size:11px; padding:1px 6px; border-radius:4px; background:var(--new); color:#fff; font-weight:700; }
+  .amt { font-weight:700; color:var(--hot); }
+  .subj { margin-top:4px; }
+  .subj a { color:var(--acc); text-decoration:none; }
+  .hl { margin-top:3px; font-size:13px; }
+  .hl b { background:rgba(250,204,21,.35); font-weight:600; }
   .det { color:var(--mut); font-size:12px; margin-top:2px; }
-  #err { color:#b91c1c; padding:12px; display:none; }
+  .dh { padding:8px 12px; font-weight:700; background:var(--chip); position:sticky; top:var(--hh,96px); z-index:1; }
+  .rel { margin:6px 0 0 8px; padding-left:8px; border-left:2px solid var(--line); font-size:12px; color:var(--mut); }
+  .empty { padding:24px 12px; color:var(--mut); }
+  .chips { display:flex; gap:6px; flex-wrap:wrap; padding:0 12px 8px; }
+  .chips .chip { padding:4px 8px; font-size:13px; }
+  .chips .chip span { cursor:pointer; margin-left:6px; color:var(--hot); }
+  .note { color:var(--mut); font-size:12px; padding:8px 12px; }
+  .cnt { font-size:11px; padding:1px 6px; border-radius:10px; background:var(--acc); color:#fff; font-weight:700; }
+  .hidebtn { color:var(--mut); font-size:12px; margin-left:8px; cursor:pointer; text-decoration:underline; }
+  details { margin-top:6px; }
+  summary { cursor:pointer; color:var(--acc); font-size:13px; }
+  .sub { padding:6px 0 6px 8px; margin-top:6px; border-left:2px solid var(--line); }
+  .sub.hot { border-left-color:var(--hot); }
+  .more { display:block; margin:8px 12px; }
+  .dh2 { padding:4px 12px; font-size:12px; color:var(--mut); background:var(--chip); }
+  section { display:none; } section.on { display:block; }
 </style>
 </head>
 <body>
-<header>
-  <div class="row">
-    <h1>NSE Watch</h1>
+<header id="hdr">
+  <div class="tabs" id="tabs">
+    <button data-t="ann" class="on">Announcements</button>
+    <button data-t="week">This Week</button>
+    <button data-t="cal">Calendar</button>
+    <button data-t="my">My Stocks</button>
+  </div>
+  <div class="bar">
     <select id="cap">
       <option value="LM">Large + Mid</option>
       <option value="Large Cap">Large</option>
@@ -40,58 +73,315 @@
       <option value="Small Cap">Small</option>
       <option value="ALL">All</option>
     </select>
+    <span id="annctl" class="bar" style="padding:0">
+      <select id="win">
+        <option value="two">Last 2 days</option>
+        <option value="close">Since last close</option>
+      </select>
+      <label class="ck"><input type="checkbox" id="onlyhl"> Highlights only</label>
+      <label class="ck"><input type="checkbox" id="showhid"> Hidden (<span id="hidn">0</span>)</label>
+    </span>
+    <select id="purp" style="display:none">
+      <option value="">All purposes</option>
+      <option value="result">Results</option>
+      <option value="dividend">Dividend</option>
+      <option value="fund">Fund raising</option>
+    </select>
+    <label class="ck" id="mineWrap"><input type="checkbox" id="mine"> My stocks only</label>
+    <input type="text" id="q" placeholder="Search">
     <button id="reload">Refresh</button>
   </div>
-  <div class="row" style="margin-top:8px"><input id="q" placeholder="Search symbol / company / subject"></div>
   <div id="meta"></div>
 </header>
 <div id="err"></div>
-<div class="wrap">
-<table>
-  <thead><tr><th>Time</th><th>Company</th><th>Subject</th></tr></thead>
-  <tbody id="body"></tbody>
-</table>
-</div>
+
+<section id="s-ann" class="on"><div id="l-ann"></div></section>
+<section id="s-week"><div id="l-week"></div></section>
+<section id="s-cal"><div id="l-cal"></div></section>
+<section id="s-my">
+  <div class="bar">
+    <input type="text" id="addsym" placeholder="Add symbol, e.g. LT or JWL" style="text-transform:uppercase">
+    <button id="addbtn">Add</button>
+    <label class="ck"><input type="checkbox" id="myhl"> Highlights only</label>
+    <button id="bk" title="Copy your list or restore it on another device">Backup / Restore</button>
+  </div>
+  <div class="chips" id="chips"></div>
+  <div id="l-my"></div>
+  <div class="note" id="mynote"></div>
+</section>
+
 <script>
-let items = [];
 const $ = id => document.getElementById(id);
-const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const store = {
+  get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+};
+const prevSeen = store.get('lastSeen', 0);
+store.set('lastSeen', Date.now());
+
+let ann = [], evs = [], allItems = [], upd = '', archive = null, archLoading = false;
+const myExpanded = new Set();
+let ignore = store.get('ignore', []);
+let tab = (location.hash || '#ann').slice(1);
+let watch = store.get('watch', []);
+
+const IST = 19800000;
+const istDate = ms => new Date(ms + IST).toISOString().slice(0, 10);
+const capOk = (c, sel) => sel === 'ALL' || (sel === 'LM' ? (c === 'Large Cap' || c === 'Mid Cap') : c === sel);
+
+function lastClose() {
+  const x = new Date(Date.now() + IST);
+  let c = Date.UTC(x.getUTCFullYear(), x.getUTCMonth(), x.getUTCDate(), 15, 30);
+  if (x.getTime() < c) c -= 86400000;
+  while ([0, 6].includes(new Date(c).getUTCDay())) c -= 86400000;
+  return c - IST;
+}
+const fmtTs = ts => ts ? new Date(ts).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : '';
+const fmtDay = d => new Date(d + 'T00:00:00Z').toLocaleDateString('en-IN', { timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'short' });
+
+function boldAmt(t) {
+  return esc(t).replace(/((?:₹|rs\.?|inr)\s*[\d,]+(?:\.\d+)?\s*(?:crores?|cr\b|lakhs?|million|mn|billion|bn))/gi, '<b>$1</b>');
+}
+
+function annRow(i, showNew = true) {
+  const isNew = showNew && i.ts && Date.parse(i.ts) > prevSeen && prevSeen > 0;
+  const tags = (i.tags || []).map(t => `<span class="tag ${t}">${esc(t)}</span>`).join(' ');
+  const subj = i.pdf ? `<a href="${esc(i.pdf)}" target="_blank" rel="noopener">${esc(i.subject)}</a>` : esc(i.subject);
+  const hl = (i.hl || []).map(h => `<div class="hl">${boldAmt(h)}</div>`).join('');
+  const det = !hl && i.details ? `<div class="det">${esc(i.details.slice(0, 220))}</div>` : '';
+  return `<div class="item ${i.hot ? 'hot' : ''}">
+    <div class="top">
+      <span class="sym">${watch.includes(i.symbol) ? '★ ' : ''}${esc(i.symbol)}</span><span class="chip ${(i.cap || '').split(' ')[0]}">${esc(i.cap)}</span>
+      ${i.hot ? '<span class="hotb">HOT</span>' : ''}${isNew ? '<span class="newb">NEW</span>' : ''}
+      ${i.amt ? `<span class="amt">${esc(i.amt)}</span>` : ''}
+      <span class="time">${fmtTs(i.ts)}</span>
+    </div>
+    <div class="co">${esc(i.company)}</div>
+    <div class="top" style="margin-top:3px">${tags}</div>
+    <div class="subj">${subj}</div>${hl}${det}</div>`;
+}
+
+function subRow(i) {
+  const tags = (i.tags || []).map(t => `<span class="tag ${t}">${esc(t)}</span>`).join(' ');
+  const subj = i.pdf ? `<a href="${esc(i.pdf)}" target="_blank" rel="noopener">${esc(i.subject)}</a>` : esc(i.subject);
+  const hl = (i.hl || []).map(h => `<div class="hl">${boldAmt(h)}</div>`).join('');
+  return `<div class="sub ${i.hot ? 'hot' : ''}"><div class="top">${i.hot ? '<span class="hotb">HOT</span>' : ''}${tags}
+    ${i.amt ? `<span class="amt">${esc(i.amt)}</span>` : ''}<span class="time">${fmtTs(i.ts)}</span></div>
+    <div class="subj">${subj}</div>${hl}</div>`;
+}
+
+function groupCard(sym, items, hidden) {
+  const best = items.find(i => i.hot) || items.find(i => (i.tags || []).length) || items[0];
+  const hot = items.some(i => i.hot);
+  const isNew = prevSeen > 0 && items.some(i => i.ts && Date.parse(i.ts) > prevSeen);
+  const tags = [...new Set(items.flatMap(i => i.tags || []))].map(t => `<span class="tag ${t}">${esc(t)}</span>`).join(' ');
+  const topAmt = items.slice().sort((a, b) => (b.amt_cr || 0) - (a.amt_cr || 0))[0];
+  const amt = topAmt && topAmt.amt_cr ? topAmt.amt : '';
+  const subj = best.pdf ? `<a href="${esc(best.pdf)}" target="_blank" rel="noopener">${esc(best.subject)}</a>` : esc(best.subject);
+  const hl = (best.hl || []).map(h => `<div class="hl">${boldAmt(h)}</div>`).join('');
+  const det = !hl && best.details ? `<div class="det">${esc(best.details.slice(0, 220))}</div>` : '';
+  const more = items.length > 1 ? `<details><summary>Show all ${items.length} announcements</summary>${items.map(subRow).join('')}</details>` : '';
+  return `<div class="item ${hot ? 'hot' : ''}">
+    <div class="top">
+      <span class="sym">${watch.includes(sym) ? '★ ' : ''}${esc(sym)}</span><span class="chip ${(best.cap || '').split(' ')[0]}">${esc(best.cap)}</span>
+      ${items.length > 1 ? `<span class="cnt">${items.length}</span>` : ''}${hot ? '<span class="hotb">HOT</span>' : ''}${isNew ? '<span class="newb">NEW</span>' : ''}
+      ${amt ? `<span class="amt">${esc(amt)}</span>` : ''}
+      <span class="time">${fmtTs(items[0].ts)}</span>
+    </div>
+    <div class="co">${esc(best.company)}<a class="hidebtn" data-hide="${esc(sym)}">${hidden ? 'Unhide' : 'Hide'}</a></div>
+    <div class="top" style="margin-top:3px">${tags}</div>
+    <div class="subj">${subj}</div>${hl}${det}${more}</div>`;
+}
+
+function related(sym, n = 2) {
+  const r = allItems.filter(i => i.symbol === sym);
+  r.sort((a, b) => ((b.tags || []).length > 0) - ((a.tags || []).length > 0) || (b.ts || '').localeCompare(a.ts || ''));
+  return { n: r.length, top: r.slice(0, n) };
+}
+
+function evRow(e, withRel = true) {
+  const r = withRel ? related(e.symbol) : { n: 0, top: [] };
+  const rel = r.n ? `<div class="rel"><div>${r.n} announcement(s) stored for ${esc(e.symbol)}:</div>` +
+    r.top.map(i => `<div>• ${esc(i.subject)}${i.hl && i.hl[0] ? ' — ' + boldAmt(i.hl[0].slice(0, 140)) : ''}</div>`).join('') + '</div>' : '';
+  return `<div class="item">
+    <div class="top"><span class="sym">${watch.includes(e.symbol) ? '★ ' : ''}${esc(e.symbol)}</span><span class="chip ${(e.cap || '').split(' ')[0]}">${esc(e.cap)}</span>
+      <span class="tag RESULTS" style="background:#64748b">${esc(e.purpose)}</span></div>
+    <div class="co">${esc(e.company)}</div>
+    <div class="det">${esc(e.desc.slice(0, 180))}</div>${rel}</div>`;
+}
+
+function groupByDate(list, fn) {
+  let out = '', cur = '';
+  for (const e of list) {
+    if (e.date !== cur) { cur = e.date; out += `<div class="dh">${fmtDay(cur)}${cur === istDate(Date.now()) ? ' · Today' : ''}</div>`; }
+    out += fn(e);
+  }
+  return out;
+}
+
+function textOf(...a) { return a.join(' ').toLowerCase(); }
 
 function render() {
   const capSel = $('cap').value, q = $('q').value.trim().toLowerCase();
-  const rows = items.filter(i => {
-    if (capSel === 'LM' && !(i.cap === 'Large Cap' || i.cap === 'Mid Cap')) return false;
-    if (capSel !== 'LM' && capSel !== 'ALL' && i.cap !== capSel) return false;
-    return !q || (i.symbol + ' ' + i.company + ' ' + i.subject + ' ' + i.details).toLowerCase().includes(q);
-  });
-  $('body').innerHTML = rows.slice(0, 300).map(i => {
-    const cls = i.cap.split(' ')[0];
-    const subj = i.pdf ? `<a href="${esc(i.pdf)}" target="_blank" rel="noopener">${esc(i.subject)}</a>` : esc(i.subject);
-    return `<tr>
-      <td class="time">${esc(i.time)}</td>
-      <td><span class="sym">${esc(i.symbol)}</span> <span class="cap ${cls}">${esc(i.cap)}</span><div class="co">${esc(i.company)}</div></td>
-      <td>${subj}<div class="det">${esc(i.details)}</div></td></tr>`;
-  }).join('') || '<tr><td colspan="3" style="color:var(--mut)">No announcements match.</td></tr>';
-  $('meta').textContent = `${rows.length} shown of ${items.length} · ${$('meta').dataset.upd || ''}`;
+  const myset = new Set(watch);
+  const mineOnly = $('mine').checked;
+  let n = 0, total = 0, extra = '';
+
+  if (tab === 'ann') {
+    const cutoff = $('win').value === 'close' ? lastClose() : 0;
+    const only = $('onlyhl').checked, showHid = $('showhid').checked, ign = new Set(ignore);
+    $('hidn').textContent = ignore.length;
+    const rows = ann.filter(i => {
+      if (cutoff && !(i.ts && Date.parse(i.ts) >= cutoff)) return false;
+      if (mineOnly ? !myset.has(i.symbol) : (!capOk(i.cap, capSel) && !myset.has(i.symbol))) return false;
+      if (only && !(i.tags || []).length) return false;
+      return !q || textOf(i.symbol, i.company, i.subject, i.details).includes(q);
+    });
+    const groups = new Map();
+    for (const i of rows) { if (!groups.has(i.symbol)) groups.set(i.symbol, []); groups.get(i.symbol).push(i); }
+    const list = [...groups.entries()].filter(([sym]) => showHid ? ign.has(sym) : !ign.has(sym));
+    list.sort((x, y) => (y[1][0].ts || '').localeCompare(x[1][0].ts || ''));
+    n = list.reduce((t, [, v]) => t + v.length, 0); total = ann.length;
+    extra = ` · ${list.length} companies` + (cutoff ? ' · since ' + fmtTs(cutoff) : ' · last 2 trading days');
+    $('l-ann').innerHTML = list.slice(0, 300).map(([sym, v]) => groupCard(sym, v, ign.has(sym))).join('') ||
+      '<div class="empty">Nothing matches.</div>';
+  }
+
+  if (tab === 'week') {
+    const t0 = istDate(Date.now()), t7 = istDate(Date.now() + 6 * 86400000);
+    const rows = evs.filter(e => e.date >= t0 && e.date <= t7 && (mineOnly ? myset.has(e.symbol) : (capOk(e.cap, capSel) || myset.has(e.symbol))) &&
+      (!q || textOf(e.symbol, e.company, e.purpose, e.desc).includes(q)));
+    n = rows.length; total = evs.length; extra = ' · next 7 days';
+    $('l-week').innerHTML = groupByDate(rows, e => evRow(e)) || `<div class="empty">No events in the next 7 days for this filter.${mineOnly ? ' None of your stocks has a meeting/result date announced yet.' : ''}</div>`;
+  }
+
+  if (tab === 'cal') {
+    const p = $('purp').value;
+    const rows = evs.filter(e => e.date >= istDate(Date.now()) && (mineOnly ? myset.has(e.symbol) : (capOk(e.cap, capSel) || myset.has(e.symbol))) &&
+      (!p || textOf(e.purpose, e.desc).includes(p)) &&
+      (!q || textOf(e.symbol, e.company, e.purpose, e.desc).includes(q)));
+    n = rows.length; total = evs.length;
+    $('l-cal').innerHTML = groupByDate(rows.slice(0, 600), e => evRow(e, false)) || '<div class="empty">No events.</div>';
+  }
+
+  if (tab === 'my') {
+    $('chips').innerHTML = watch.map(s => `<span class="chip">${esc(s)}<span data-rm="${esc(s)}">✕</span></span>`).join('') ||
+      '<span class="note">No stocks yet. Add a symbol above.</span>';
+    if (watch.length) loadArchive();
+    const t0 = istDate(Date.now()), onlyhl = $('myhl').checked;
+    let html = '';
+    for (const s of watch) {
+      const e = evs.filter(x => x.symbol === s && x.date >= t0);
+      let a = allItems.filter(x => x.symbol === s).sort((x, y) => (y.ts || '').localeCompare(x.ts || ''));
+      if (onlyhl) a = a.filter(x => (x.tags || []).length);
+      html += `<div class="dh">${esc(s)} <span class="co">${esc((a[0] || e[0] || {}).company || '')}</span></div>`;
+      html += e.map(x => `<div class="item"><div class="top"><span class="tag RESULTS" style="background:#64748b">UPCOMING ${fmtDay(x.date)}</span> <span>${esc(x.purpose)}</span></div><div class="det">${esc(x.desc.slice(0, 200))}</div></div>`).join('');
+      const lim = myExpanded.has(s) ? a.length : 12;
+      let day = '';
+      for (const i of a.slice(0, lim)) {
+        const d = (i.ts || '').slice(0, 10);
+        if (d !== day) { day = d; html += `<div class="dh2">${d ? fmtDay(d) : ''}</div>`; }
+        html += annRow(i);
+      }
+      if (!a.length) html += `<div class="empty">${archLoading ? 'Loading history…' : 'No announcements in the stored 30 days.'}</div>`;
+      if (a.length > lim) html += `<button class="more" data-more="${esc(s)}">Show all ${a.length} (last 30 days)</button>`;
+    }
+    $('l-my').innerHTML = html;
+    n = watch.length; total = watch.length;
+    $('mynote').textContent = archLoading ? 'Loading 30-day history…' : (archive ? 'Showing up to 30 days of stored announcements.' : '');
+  }
+  $('meta').textContent = `${n} shown${extra} · updated ${upd}`;
+  document.documentElement.style.setProperty('--hh', $('hdr').offsetHeight + 'px');
+}
+
+function setTab(t) {
+  tab = t; location.hash = t;
+  document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+  ['ann', 'week', 'cal', 'my'].forEach(k => $('s-' + k).classList.toggle('on', k === t));
+  $('annctl').style.display = t === 'ann' ? 'flex' : 'none';
+  $('purp').style.display = t === 'cal' ? '' : 'none';
+  $('cap').style.display = t === 'my' ? 'none' : '';
+  $('q').style.display = t === 'my' ? 'none' : '';
+  $('mineWrap').style.display = t === 'my' ? 'none' : '';
+  render();
+}
+
+async function getJson(name, optional, fresh = true) {
+  const r = await fetch(fresh ? name + '?t=' + Date.now() : name, fresh ? { cache: 'no-store' } : {});
+  if (!r.ok) { if (optional) return null; throw new Error(name + ' HTTP ' + r.status); }
+  return r.json();
 }
 
 async function load() {
   $('err').style.display = 'none';
   try {
-    const r = await fetch('announcements.json?t=' + Date.now(), { cache: 'no-store' });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const d = await r.json();
-    items = d.items;
-    $('meta').dataset.upd = 'updated ' + d.updated;
+    const [a, e] = await Promise.all([getJson('announcements.json'), getJson('events.json', true)]);
+    ann = a.items; upd = a.updated; evs = e ? e.items : [];
+    archive = null;
+    rebuildAll();
     render();
-  } catch (e) {
-    $('err').textContent = 'Could not load announcements.json: ' + e.message;
+  } catch (err) {
+    $('err').textContent = 'Could not load data: ' + err.message;
     $('err').style.display = 'block';
   }
 }
-$('reload').onclick = load;
-$('cap').onchange = render;
+
+function rebuildAll() {
+  const map = new Map();
+  for (const i of [...(archive || []), ...ann]) map.set(i.id || i.symbol + '|' + i.time + '|' + i.subject, i);
+  allItems = [...map.values()];
+}
+
+async function loadArchive() {
+  if (archive || archLoading) return;
+  archLoading = true; render();
+  try {
+    const idx = await getJson('archive/index.json');
+    const today = istDate(Date.now()), yest = istDate(Date.now() - 86400000);
+    const res = await Promise.all(idx.days.map(d => getJson('archive/' + d + '.json', true, d >= yest && d <= today).catch(() => null)));
+    archive = res.flatMap(r => (r ? r.items : []));
+  } catch (err) {
+    archive = [];
+  }
+  archLoading = false;
+  rebuildAll(); render();
+}
+
+function addSym() {
+  const s = $('addsym').value.trim().toUpperCase().replace(/[^A-Z0-9&-]/g, '');
+  if (s && !watch.includes(s)) { watch.push(s); store.set('watch', watch); }
+  $('addsym').value = ''; render();
+}
+$('addbtn').onclick = addSym;
+$('bk').onclick = () => {
+  const t = prompt('Your stocks (copy this text to back up). To restore on another device, paste a list here and press OK:', watch.join(','));
+  if (t === null) return;
+  watch = [...new Set(t.toUpperCase().split(/[^A-Z0-9&-]+/).filter(Boolean))];
+  store.set('watch', watch); render();
+};
+try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
+$('addsym').onkeydown = e => { if (e.key === 'Enter') addSym(); };
+$('l-ann').onclick = e => {
+  const s = e.target.dataset && e.target.dataset.hide;
+  if (!s) return;
+  ignore = ignore.includes(s) ? ignore.filter(x => x !== s) : [...ignore, s];
+  store.set('ignore', ignore); render();
+};
+$('l-my').onclick = e => {
+  const s = e.target.dataset && e.target.dataset.more;
+  if (s) { myExpanded.add(s); render(); }
+};
+$('chips').onclick = e => {
+  const s = e.target.dataset && e.target.dataset.rm;
+  if (s) { watch = watch.filter(x => x !== s); store.set('watch', watch); render(); }
+};
+$('tabs').onclick = e => { if (e.target.dataset.t) setTab(e.target.dataset.t); };
+['cap', 'win', 'purp', 'onlyhl', 'mine', 'showhid', 'myhl'].forEach(id => $(id).onchange = render);
 $('q').oninput = render;
+$('reload').onclick = load;
+if (!['ann', 'week', 'cal', 'my'].includes(tab)) tab = 'ann';
+setTab(tab);
 load();
 </script>
 </body>
