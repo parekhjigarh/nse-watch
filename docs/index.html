@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NSE Watch</title>
+<style>
+  :root { --bg:#fff; --fg:#1a1a1a; --mut:#6b7280; --line:#e5e7eb; --chip:#f3f4f6; --acc:#1d4ed8; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#111418; --fg:#e8eaed; --mut:#9aa0a6; --line:#2a2f36; --chip:#1c2128; --acc:#6ea8fe; } }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.4 system-ui,sans-serif; background:var(--bg); color:var(--fg); }
+  header { position:sticky; top:0; background:var(--bg); border-bottom:1px solid var(--line); padding:10px 12px; z-index:2; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  h1 { font-size:16px; margin:0; flex:1; }
+  button, select, input { font:inherit; padding:6px 10px; border:1px solid var(--line); border-radius:6px; background:var(--chip); color:var(--fg); }
+  input { flex:1; min-width:120px; }
+  #meta { color:var(--mut); font-size:12px; margin-top:6px; }
+  .wrap { overflow-x:auto; }
+  table { border-collapse:collapse; width:100%; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--mut); font-weight:600; font-size:12px; position:sticky; top:0; background:var(--bg); }
+  .cap { font-size:11px; padding:2px 6px; border-radius:4px; background:var(--chip); white-space:nowrap; }
+  .Large { color:#15803d; } .Mid { color:#b45309; } .Small { color:#6b7280; }
+  .sym { font-weight:600; white-space:nowrap; }
+  .co { color:var(--mut); font-size:12px; }
+  .time { white-space:nowrap; color:var(--mut); font-size:12px; }
+  a { color:var(--acc); text-decoration:none; }
+  .det { color:var(--mut); font-size:12px; margin-top:2px; }
+  #err { color:#b91c1c; padding:12px; display:none; }
+</style>
+</head>
+<body>
+<header>
+  <div class="row">
+    <h1>NSE Watch</h1>
+    <select id="cap">
+      <option value="LM">Large + Mid</option>
+      <option value="Large Cap">Large</option>
+      <option value="Mid Cap">Mid</option>
+      <option value="Small Cap">Small</option>
+      <option value="ALL">All</option>
+    </select>
+    <button id="reload">Refresh</button>
+  </div>
+  <div class="row" style="margin-top:8px"><input id="q" placeholder="Search symbol / company / subject"></div>
+  <div id="meta"></div>
+</header>
+<div id="err"></div>
+<div class="wrap">
+<table>
+  <thead><tr><th>Time</th><th>Company</th><th>Subject</th></tr></thead>
+  <tbody id="body"></tbody>
+</table>
+</div>
+<script>
+let items = [];
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function render() {
+  const capSel = $('cap').value, q = $('q').value.trim().toLowerCase();
+  const rows = items.filter(i => {
+    if (capSel === 'LM' && !(i.cap === 'Large Cap' || i.cap === 'Mid Cap')) return false;
+    if (capSel !== 'LM' && capSel !== 'ALL' && i.cap !== capSel) return false;
+    return !q || (i.symbol + ' ' + i.company + ' ' + i.subject + ' ' + i.details).toLowerCase().includes(q);
+  });
+  $('body').innerHTML = rows.slice(0, 300).map(i => {
+    const cls = i.cap.split(' ')[0];
+    const subj = i.pdf ? `<a href="${esc(i.pdf)}" target="_blank" rel="noopener">${esc(i.subject)}</a>` : esc(i.subject);
+    return `<tr>
+      <td class="time">${esc(i.time)}</td>
+      <td><span class="sym">${esc(i.symbol)}</span> <span class="cap ${cls}">${esc(i.cap)}</span><div class="co">${esc(i.company)}</div></td>
+      <td>${subj}<div class="det">${esc(i.details)}</div></td></tr>`;
+  }).join('') || '<tr><td colspan="3" style="color:var(--mut)">No announcements match.</td></tr>';
+  $('meta').textContent = `${rows.length} shown of ${items.length} · ${$('meta').dataset.upd || ''}`;
+}
+
+async function load() {
+  $('err').style.display = 'none';
+  try {
+    const r = await fetch('announcements.json?t=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+    items = d.items;
+    $('meta').dataset.upd = 'updated ' + d.updated;
+    render();
+  } catch (e) {
+    $('err').textContent = 'Could not load announcements.json: ' + e.message;
+    $('err').style.display = 'block';
+  }
+}
+$('reload').onclick = load;
+$('cap').onchange = render;
+$('q').oninput = render;
+load();
+</script>
+</body>
+</html>
