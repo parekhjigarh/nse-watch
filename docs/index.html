@@ -4,6 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>NSE Watch</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#1d4ed8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="NSE Watch">
 <style>
   :root { --bg:#fff; --fg:#1a1a1a; --mut:#6b7280; --line:#e5e7eb; --chip:#f3f4f6; --acc:#1d4ed8; --hot:#dc2626; --new:#16a34a; }
   @media (prefers-color-scheme: dark) { :root { --bg:#111418; --fg:#e8eaed; --mut:#9aa0a6; --line:#2a2f36; --chip:#1c2128; --acc:#6ea8fe; --hot:#f87171; --new:#4ade80; } }
@@ -72,6 +77,8 @@
     <button data-t="cal">Calendar</button>
     <button data-t="my">My Stocks</button>
   </div>
+</header>
+<div id="ctl">
   <div class="bar">
     <select id="cap">
       <option value="LM">Large + Mid</option>
@@ -99,7 +106,7 @@
     <button id="reload">Refresh</button>
   </div>
   <div id="meta"></div>
-</header>
+</div>
 <div id="err"></div>
 
 <section id="s-ann" class="on"><div id="l-ann"></div></section>
@@ -417,6 +424,31 @@ $('tabs').onclick = e => { if (e.target.dataset.t) setTab(e.target.dataset.t); }
 ['cap', 'win', 'purp', 'onlyhl', 'mine', 'showhid'].forEach(id => $(id).onchange = render);
 $('q').oninput = render;
 $('reload').onclick = load;
+// swipe left/right anywhere to change tab
+const TABS = ['ann', 'week', 'cal', 'my'];
+let sx = 0, sy = 0, st = 0, swipeOk = false;
+document.addEventListener('touchstart', e => {
+  const t = e.touches[0], el = e.target;
+  sx = t.clientX; sy = t.clientY; st = Date.now();
+  let n = el, scrollable = false;
+  while (n && n !== document.body) {
+    if (n.scrollWidth > n.clientWidth + 4 && ['auto', 'scroll'].includes(getComputedStyle(n).overflowX)) { scrollable = true; break; }
+    n = n.parentElement;
+  }
+  const edge = sx < 24 || sx > window.innerWidth - 24;
+  swipeOk = e.touches.length === 1 && !scrollable && !edge && !el.closest('input, select, textarea');
+}, { passive: true });
+document.addEventListener('touchend', e => {
+  if (!swipeOk) return;
+  const t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy;
+  if (Math.abs(dx) < 70 || Math.abs(dx) < 1.8 * Math.abs(dy) || Date.now() - st > 700) return;
+  const i = TABS.indexOf(tab) + (dx < 0 ? 1 : -1);
+  if (i < 0 || i >= TABS.length) return;
+  setTab(TABS[i]); window.scrollTo(0, 0);
+  const b = document.querySelector('.tabs button.on'); if (b && b.scrollIntoView) b.scrollIntoView({ inline: 'center', block: 'nearest' });
+}, { passive: true });
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+
 if (!['ann', 'week', 'cal', 'my'].includes(tab)) tab = 'ann';
 setTab(tab);
 load();
