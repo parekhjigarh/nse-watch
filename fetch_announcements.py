@@ -20,7 +20,7 @@ EVT_FILE = ROOT / "docs" / "events.json"
 ARCHIVE = ROOT / "docs" / "archive"
 
 IST = timezone(timedelta(hours=5, minutes=30))
-ARCHIVE_DAYS = 30
+ARCHIVE_DAYS = 7
 MAX_PDFS_PER_RUN = 30
 
 HEADERS = {
@@ -319,7 +319,7 @@ def main():
         d += timedelta(days=1)
 
     # 2) backfill older days of the archive window (once per day, text-only highlights)
-    start = today - timedelta(days=ARCHIVE_DAYS)
+    start = min(today - timedelta(days=ARCHIVE_DAYS), recent_from)
     d = start
     while d < recent_from:
         if not day_path(d).exists():
