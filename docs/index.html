@@ -136,7 +136,7 @@ store.set('lastSeen', Date.now());
 let ann = [], evs = [], allItems = [], upd = '', archive = null, archLoading = false;
 const myExpanded = new Set(), myOpen = new Set();
 let ignore = store.get('ignore', []);
-let tab = (location.hash || '#ann').slice(1);
+let tab = (location.hash || '#' + store.get('tab', 'ann')).slice(1);
 let watch = store.get('watch', []);
 
 const IST = 19800000;
@@ -254,11 +254,11 @@ function myCard(s) {
   const latest = hi[0] ? `Latest: ${esc(hi[0].subject)} (${fmtDay(hi[0].ts.slice(0, 10))})` : '';
   const head = `<div class="dh tog" data-stock="${esc(s)}"><span>${open ? '▼' : '▶'} ${esc(s)} <span class="co">${esc(company)}</span></span>` +
     `<span>${hot ? '<span class="hotb">HOT</span> ' : ''}${top && top.amt_cr ? `<span class="amt">${esc(top.amt)}</span> ` : ''}<span class="co">${a.length}</span></span></div>`;
-  const line = `<div class="sumline">${archLoading && !a.length ? 'Loading…' : [next, latest].filter(Boolean).join(' · ') || (a.length ? '' : 'No announcements in the last 30 days')}</div>`;
+  const line = `<div class="sumline">${archLoading && !a.length ? 'Loading…' : [next, latest].filter(Boolean).join(' · ') || (a.length ? '' : 'No announcements in the last 7 days')}</div>`;
   if (!open) return head + line;
 
-  let html = head + line + '<div class="sec">Quick highlights · last 30 days</div>';
-  html += hi.length ? hi.map(i => `<div class="indent">${subRow(i)}</div>`).join('') : '<div class="sumline">No tagged news in the last 30 days.</div>';
+  let html = head + line + '<div class="sec">Quick highlights · last 7 days</div>';
+  html += hi.length ? hi.map(i => `<div class="indent">${subRow(i)}</div>`).join('') : '<div class="sumline">No tagged news in the last 7 days.</div>';
   html += '<div class="sec">Upcoming meetings</div>';
   html += e.length ? e.map(x => `<div class="item"><div class="top"><span class="tag RESULTS" style="background:#64748b">${fmtDay(x.date)}</span> <span>${esc(x.purpose)}</span></div><div class="det">${esc(x.desc.slice(0, 220))}</div></div>`).join('') :
     '<div class="sumline">None announced yet.</div>';
@@ -325,14 +325,14 @@ function render() {
     if (watch.length) loadArchive();
     $('l-my').innerHTML = watch.map(myCard).join('');
     n = watch.length; total = watch.length;
-    $('mynote').textContent = archLoading ? 'Loading 30-day history…' : (archive ? 'Showing the last 30 days of stored announcements.' : '');
+    $('mynote').textContent = archLoading ? 'Loading 7-day history…' : (archive ? 'Showing the last 7 days of stored announcements.' : '');
   }
   $('meta').textContent = `${n} shown${extra} · updated ${upd}`;
   document.documentElement.style.setProperty('--hh', $('hdr').offsetHeight + 'px');
 }
 
 function setTab(t) {
-  tab = t; location.hash = t;
+  tab = t; location.hash = t; store.set('tab', t);
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
   ['ann', 'week', 'cal', 'my'].forEach(k => $('s-' + k).classList.toggle('on', k === t));
   $('annctl').style.display = t === 'ann' ? 'flex' : 'none';
@@ -421,7 +421,22 @@ $('chips').onclick = e => {
   if (s) { watch = watch.filter(x => x !== s); store.set('watch', watch); render(); }
 };
 $('tabs').onclick = e => { if (e.target.dataset.t) setTab(e.target.dataset.t); };
-['cap', 'win', 'purp', 'onlyhl', 'mine', 'showhid'].forEach(id => $(id).onchange = render);
+const FILTERS = ['cap', 'win', 'purp', 'onlyhl', 'mine', 'showhid'];
+function saveFilters() {
+  const f = {};
+  FILTERS.forEach(id => { const e = $(id); f[id] = e.type === 'checkbox' ? e.checked : e.value; });
+  store.set('filters', f);
+}
+(function restoreFilters() {
+  const f = store.get('filters', {});
+  FILTERS.forEach(id => {
+    if (!(id in f)) return;
+    const e = $(id);
+    if (e.type === 'checkbox') e.checked = !!f[id];
+    else if ([...e.options].some(o => o.value === f[id])) e.value = f[id];
+  });
+})();
+FILTERS.forEach(id => $(id).onchange = () => { saveFilters(); render(); });
 $('q').oninput = render;
 $('reload').onclick = load;
 // swipe left/right anywhere to change tab
