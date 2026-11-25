@@ -85,6 +85,9 @@ TAG_RULES = [
     ("RESULTS", r"financial results?|unaudited|audited results?|quarter(?:ly)? results?"),
     ("DIVIDEND", r"dividend|\bbonus\b|stock split|sub-?division of|buy-?back"),
     ("M&A", r"acqui(?:re|res|red|sition)|merger|amalgamation|demerger|takeover|open offer|stake (?:in|sale)|sale of stake"),
+    ("ALLIANCE", r"joint[- ]venture|\bjv\b|framework agreement|technology transfer|transfer of technology|"
+                 r"strategic (?:alliance|partnership)|memorandum of understanding|\bmou\b|tie-?up|"
+                 r"collaboration agreement|binding term sheet|share purchase agreement"),
     ("RATING", r"credit rating|rating (?:action|upgrade|downgrade|reaffirm)|upgraded|downgraded"),
     ("MGMT", r"resign|cessation|appointment of (?:ceo|cfo|managing|chief|whole)|\bceo\b|\bcfo\b|managing director"),
     ("FUNDS", r"fund[- ]?raising|\bqip\b|preferential (?:issue|allot)|rights issue|\bncds?\b|debentures"),
@@ -92,7 +95,10 @@ TAG_RULES = [
               r"penalty (?:of|imposed)|investigation|fraud|\bfir\b|tax demand|search and seizure|\braid\b|"
               r"enforcement directorate|\bcbi\b"),
 ]
-PDF_TAGS = {"ORDER", "M&A", "RATING", "DIVIDEND", "RESULTS"}
+PDF_TAGS = {"ORDER", "M&A", "RATING", "DIVIDEND", "RESULTS", "ALLIANCE"}
+TAG_VERSION = 2
+ALLIANCE_STRONG = re.compile(r"joint[- ]venture|framework agreement|technology transfer|transfer of technology|"
+                             r"strategic (?:alliance|partnership)", re.I)
 THIN_SUBJECT = re.compile(r"^(?:general )?updates?$|press release|investor presentation", re.I)
 ROUTINE = re.compile(
     r"newspaper publication|trading window|shareholding pattern|certificate under|"
@@ -153,8 +159,25 @@ def enrich(item, extra_text=""):
     item["hl"] = hl
     item["hot"] = bool(
         "M&A" in tags or "LEGAL" in tags or ("ORDER" in tags and item["amt_cr"] >= 500)
+        or ("ALLIANCE" in tags and ALLIANCE_STRONG.search(base))
     )
+    item["tv"] = TAG_VERSION
     return item
+
+
+def upgrade(item):
+    """Re-tag an already stored item with the current rules, keeping what it already had."""
+    if item.get("tv", 1) >= TAG_VERSION:
+        return False
+    old_tags, old_hl, old_hot = item.get("tags", []), item.get("hl", []), item.get("hot", False)
+    old_amt, old_amt_cr = item.get("amt", ""), item.get("amt_cr", 0)
+    enrich(item)
+    item["tags"] = list(dict.fromkeys(old_tags + item["tags"]))
+    item["hl"] = old_hl or item["hl"]
+    if old_amt_cr > item["amt_cr"]:
+        item["amt"], item["amt_cr"] = old_amt, old_amt_cr
+    item["hot"] = item["hot"] or old_hot
+    return True
 
 
 PDF_SUBJECTS = re.compile(
@@ -352,6 +375,11 @@ def main():
                 p.unlink()
         except ValueError:
             pass
+    for p in ARCHIVE.glob("????-??-??.json"):
+        day = datetime.strptime(p.stem, "%Y-%m-%d").date()
+        items = load_day(day)
+        if sum(upgrade(i) for i in items):
+            save_day(day, items)
     days = sorted(p.stem for p in ARCHIVE.glob("????-??-??.json"))
     write(ARCHIVE / "index.json", {"updated": stamp(), "days": days})
 
