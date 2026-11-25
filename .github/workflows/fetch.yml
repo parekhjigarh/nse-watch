@@ -2,19 +2,26 @@ name: Fetch NSE announcements
 
 on:
   schedule:
-    # GitHub cron is in UTC (IST = UTC + 5:30)
-    - cron: "30 2 * * 1-5"         # 08:00 IST, Mon-Fri (pre-market)
-    - cron: "30 3 * * 1-5"         # 09:00 IST, Mon-Fri
-    - cron: "0,30 4-10 * * 1-5"    # 09:30-16:00 IST every 30 min, Mon-Fri
-    - cron: "30 15 * * *"          # 21:00 IST, every day (evening filings, weekends too)
+    # GitHub cron is in UTC (IST = UTC + 5:30).
+    # Minutes 7/22/37/52 on purpose: GitHub drops or delays runs at :00 and :30 when it is busy.
+    - cron: "37 2 * * 1-5"             # 08:07 IST, Mon-Fri (pre-market)
+    - cron: "37,52 3 * * 1-5"          # 09:07, 09:22 IST
+    - cron: "7,22,37,52 4-9 * * 1-5"   # 09:37 .. 15:22 IST, every 15 min
+    - cron: "7,22,37 10 * * 1-5"       # 15:37, 15:52, 16:07 IST
+    - cron: "37 15 * * *"              # 21:07 IST, every day (evening filings, weekends too)
   workflow_dispatch:
 
 permissions:
   contents: write
 
+concurrency:
+  group: fetch-announcements
+  cancel-in-progress: false
+
 jobs:
   fetch:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
